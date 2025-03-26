@@ -8,69 +8,71 @@ class retrieval():
 
     # main functions
 
-    def retrieve_hist(self, coin_id=[], interval_id="m5", period_start="2025-02-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+    def retrieve_hist(self, symbol='BTCUSDT', interval_id="m5", limit=1000, period_start="2025-03-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Retrieves data for specified coins at specific markets
         
         Parameters:
-        interval_id (str): : Interval resolution in minutes hours or days, permitted strings are m1, m5, m15, m30, h1, h2, h6, h12, d1
-        coin_id (str): string indicating they currency name, default is
+        interval_id (str):  Interval resolution in minutes hours or days, permitted strings are '1d', '4h', '1h', '15m'
+        symbol (str): string indicating they currency name, default is 'BTCUSDT'
         period_start (str): Start datetime string e.g. "2019-03-12 12:30:45"
         period_end (str): End datetime string e.g "2025-03-12 12:30:45"
+        limit (int): Number of records to retrieve (max 1000)
         
         Returns:
+        API infos can be found at:
+        https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data
         data: JSON file format data
+        Format:
+
+        [
+            [
+            1499040000000,      // Open time
+            "0.01634790",       // Open
+            "0.80000000",       // High
+            "0.01575800",       // Low
+            "0.01577100",       // Close
+            "148976.11427815",  // Volume
+            1499644799999,      // Close time
+            "2434.19055334",    // Quote asset volume
+            308,                // Number of trades
+            "1756.87402397",    // Taker buy base asset volume
+            "28.46694368",      // Taker buy quote asset volume
+            "17928899.62484339" // Ignore.
+            ]
+        ]
         """
         date_start = self.datetime_to_unix(period_start)
         date_stop = self.datetime_to_unix(period_end)
 
-        base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
+        #base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
+        base_url = "https://api.binance.com/api/v3/klines"
 
-        # Parameters - using a dictionary makes it cleaner
+        """ # Parameters - using a dictionary makes it cleaner - dictionary is for coinCap
         params = {
             "interval": interval_id,
             "start": date_start*1000,
             "end": date_stop*1000
+        } """
+
+        # Parameters - using a dictionary makes it cleaner
+        params = {
+            "symbol": symbol,
+            "interval": interval_id,
+            "startTime": date_start*1000,
+            "endTime": date_stop*1000,
+            "limit": limit
         }
 
         # Retrieve historical data
         response = requests.get(base_url, params=params)
 
-        hist_data = json.loads(response.text)
-        return(hist_data)
+        return({
+                "data": response.json(),
+                "headers": dict(response.headers)
+            })
 
-    def retrieve_hist_candle(self, coin_id=[], exchange_id="poloniex", interval_id="m5", period_start="2025-03-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
-            """
-            Retrieves data for specified coins at specific markets
-            
-            Parameters:
-            interval_id (str): : Interval resolution in minutes hours or days, permitted strings are m1, m5, m15, m30, h1, h2, h6, h12, d1
-            coin_id (str): string indicating they currency name, default is
-            period_start (str): Start datetime string e.g. "2019-03-12 12:30:45"
-            period_end (str): End datetime string e.g "2025-03-12 12:30:45"
-            
-            Returns:
-            data: JSON file format data
-            """
-            date_start = self.datetime_to_unix(period_start)
-            date_stop = self.datetime_to_unix(period_end)
-
-            base_url = "https://api.coincap.io/v2/candles?exchange=poloniex&interval=h8&baseId=ethereum&quoteId=dollar" 
-            # Parameters - using a dictionary makes it cleaner
-            params = {
-                "interval": interval_id,
-                "start": date_start*1000,
-                "end": date_stop*1000
-            }
-
-            # Retrieve historical data
-            response = requests.get(base_url, params=params)
-
-            hist_data = json.loads(response.text)
-            return(hist_data)
-
-
-
+    
     def stream(self, coin_id, market_id='binance') :
         
         """
