@@ -8,22 +8,21 @@ class retrieval():
 
     # main functions
 
-    def retrieve_hist(self, coin_id=[], market_id=[], interval_id="d1", period_start, period_end=datetime.now()):
+    def retrieve_hist(self, coin_id=[], interval_id="m5", period_start="2025-02-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Retrieves data for specified coins at specific markets
         
         Parameters:
         interval_id (str): : Interval resolution in minutes hours or days, permitted strings are m1, m5, m15, m30, h1, h2, h6, h12, d1
-        coin_id (str): string indicating they currency name
-        market_id (str): string indicating they exchange name
+        coin_id (str): string indicating they currency name, default is
         period_start (str): Start datetime string e.g. "2019-03-12 12:30:45"
         period_end (str): End datetime string e.g "2025-03-12 12:30:45"
         
         Returns:
         data: JSON file format data
         """
-        date_start = datetime_to_unix(period_start)
-        date_stop = datetime_to_unix(period_end)
+        date_start = self.datetime_to_unix(period_start)
+        date_stop = self.datetime_to_unix(period_end)
 
         base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
 
@@ -58,7 +57,7 @@ class retrieval():
          
 
     ### Helper functions
-    def datetime_to_unix(dt_str, format_str='%Y-%m-%d %H:%M:%S'):
+    def datetime_to_unix(self, dt_str, format_str='%Y-%m-%d %H:%M:%S'):
         """
         Convert a datetime string to Unix timestamp
         
