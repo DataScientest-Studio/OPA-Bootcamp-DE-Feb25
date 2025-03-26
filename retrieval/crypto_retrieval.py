@@ -39,6 +39,35 @@ class retrieval():
         hist_data = json.loads(response.text)
         return(hist_data)
 
+    def retrieve_hist_candle(self, coin_id=[], exchange_id="poloniex", interval_id="m5", period_start="2025-03-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+            """
+            Retrieves data for specified coins at specific markets
+            
+            Parameters:
+            interval_id (str): : Interval resolution in minutes hours or days, permitted strings are m1, m5, m15, m30, h1, h2, h6, h12, d1
+            coin_id (str): string indicating they currency name, default is
+            period_start (str): Start datetime string e.g. "2019-03-12 12:30:45"
+            period_end (str): End datetime string e.g "2025-03-12 12:30:45"
+            
+            Returns:
+            data: JSON file format data
+            """
+            date_start = self.datetime_to_unix(period_start)
+            date_stop = self.datetime_to_unix(period_end)
+
+            base_url = "https://api.coincap.io/v2/candles?exchange=poloniex&interval=h8&baseId=ethereum&quoteId=dollar" 
+            # Parameters - using a dictionary makes it cleaner
+            params = {
+                "interval": interval_id,
+                "start": date_start*1000,
+                "end": date_stop*1000
+            }
+
+            # Retrieve historical data
+            response = requests.get(base_url, params=params)
+
+            hist_data = json.loads(response.text)
+            return(hist_data)
 
 
 

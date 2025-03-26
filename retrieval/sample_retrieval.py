@@ -4,11 +4,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 ret = retrieval()
-data = ret.retrieve_hist(interval_id="h1")
-print(data)
-#df_transform = pd.json_normalize(data['data'])
+data = ret.retrieve_hist(interval_id="d1")
+#data = ret.retrieve_hist_candle(interval_id="d1")
+#print(data)
+df_transform = pd.json_normalize(data['data'])
 #df_transform['date'] = pd.to_datetime(df_transform['date'])
-#print(df_transform)
+print(df_transform)
 #sns.set_theme(style="darkgrid")
 
 #plt.figure(figsize=(8, 6))
