@@ -3,12 +3,12 @@ import json
 from datetime import datetime
 
 class retrieval():
-    def __init__(self):
-        self.something =1
+    def __init__(self, limit = 1000):
+        self.limit = limit
 
     # main functions
 
-    def retrieve_hist(self, symbol='BTCUSDT', interval_id="m5", limit=1000, period_start="2025-03-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+    def retrieve_hist(self, symbol='BTCUSDT', interval_id="m5", period_start="2025-03-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Retrieves data for specified coins at specific markets
         
@@ -42,8 +42,9 @@ class retrieval():
             ]
         ]
         """
-        date_start = self.datetime_to_unix(period_start)
-        date_stop = self.datetime_to_unix(period_end)
+        self.date_start = self.datetime_to_unix(period_start)*1000
+        self.date_stop = self.datetime_to_unix(period_end)*1000
+        self.interval_id = interval_id
 
         #base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
         base_url = "https://api.binance.com/api/v3/klines"
@@ -59,18 +60,15 @@ class retrieval():
         params = {
             "symbol": symbol,
             "interval": interval_id,
-            "startTime": date_start*1000,
-            "endTime": date_stop*1000,
+            "startTime": self.date_start,
+            "endTime": self.date_stop,
             "limit": limit
         }
 
         # Retrieve historical data
         response = requests.get(base_url, params=params)
 
-        return({
-                "data": response.json(),
-                "headers": dict(response.headers)
-            })
+        return(response)
 
     
     def stream(self, coin_id, market_id='binance') :
@@ -128,7 +126,7 @@ class retrieval():
         new_data = json.loads(response.text)
         return(new_data)
     
-    def get_exchange_names(self):
+    def get_symbol_names(self):
         """
         Retrieve names of available exchanges on coin cap
         
@@ -139,8 +137,22 @@ class retrieval():
         list: returns list of exhcange names
         """
 
-        url = "http://api.coincap.io/v2/exchanges"
+        url = "https://api.binance.com/api/v3/exchangeInfo"
         data = self.request_fun(url_str=url)
-        ex_names = [ex_data['exchangeId'] for ex_data in data['data']]
-        return(ex_names)
+        #ex_names = [ex_data['exchangeId'] for ex_data in data['data']]
+        return(data)
+    
+    def batch_steps(self):
+        # determine stepsize by unit
+        if self.interval_id[-1]== 'm':
+            step_size = 60*1000*int(self.interval_id[:-1])
+        elif self.interval_id[-1]== 'h':
+            step_size = 60*60*1000*int(self.interval_id[:-1])
+        elif self.interval_id[-1]== 'd':
+            step_size = 24*60*60*1000*int(self.interval_id[:-1])
+
+        
+        # return number of batch steps
+        return((self.date_stop - self.date_start)/step_size)
+        
     
