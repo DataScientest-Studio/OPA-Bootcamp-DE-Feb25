@@ -1,14 +1,20 @@
 import requests
 import json
 from datetime import datetime
+from functools import wraps
+import inspect
 
 class retrieval():
     def __init__(self, limit = 1000):
+        """
+        Parameters:
+        limit (int): Number of records to retrieve (max 1000)
+        """
         self.limit = limit
 
     # main functions
 
-    def retrieve_hist(self, symbol='BTCUSDT', interval_id="m5", period_start="2025-03-12 12:30:45", period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+    def retrieve_hist(self, symbol='BTCUSDT', interval_id="m5", period_start= [] , period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Retrieves data for specified coins at specific markets
         
@@ -17,7 +23,6 @@ class retrieval():
         symbol (str): string indicating they currency name, default is 'BTCUSDT'
         period_start (str): Start datetime string e.g. "2019-03-12 12:30:45"
         period_end (str): End datetime string e.g "2025-03-12 12:30:45"
-        limit (int): Number of records to retrieve (max 1000)
         
         Returns:
         API infos can be found at:
@@ -65,7 +70,6 @@ class retrieval():
             "limit": limit
         }
 
-        # Retrieve historical data
         response = requests.get(base_url, params=params)
 
         return(response)
@@ -143,7 +147,17 @@ class retrieval():
         return(data)
     
     def batch_steps(self):
-        # determine stepsize by unit
+        """
+        # determine stepsize by unit because the limit for retrieval is 1000 on binance
+        
+        Parameters:
+        self.interval_id (str) -  Interval resolution in minutes hours or days, permitted strings are '1d', '4h', '1h', '15m'
+        self.date_stop (int) - Start datetime string transformed to Unix time
+        
+        Returns:
+        dict: returns dictionary with the total batch size and the step size
+        """
+        
         if self.interval_id[-1]== 'm':
             step_size = 60*1000*int(self.interval_id[:-1])
         elif self.interval_id[-1]== 'h':
@@ -153,6 +167,33 @@ class retrieval():
 
         
         # return number of batch steps
-        return((self.date_stop - self.date_start)/step_size)
-        
+        return({"batch_size":(self.date_stop - self.date_start)/step_size,
+                "step_size":step_size})
+    
+    def batch_decorator(self, func):
+        # Decorator that checks if batch size exceeds limit - if so calls retrieval multiple times
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Initialize variables
+            results = []
+            batch = self.batch_steps()
+            if batch["batch_size"] < self.limits():
+                results = func(*args, **kwargs)
+            else:
+                # Get function signature
+                sig = inspect.signature(func)
+                bound_args = sig.bind(*args, **kwargs)
+                bound_args.apply_defaults()
+
+                # calculate number of calls
+                batch_info = self.batch_steps()
+                call_nr = round(batch_info['batch_size']/batch_info['step_size'])
+            
+                # save the final step
+                fin_step = self.date_stop
+                #next update the start and end time
+                bound_args.arguments['period_start'] =
+
+            return(results)
+        return(wrapper)
     
