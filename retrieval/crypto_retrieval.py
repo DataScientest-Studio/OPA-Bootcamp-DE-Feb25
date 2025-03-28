@@ -11,13 +11,26 @@ class retrieval():
         limit (int): Number of records to retrieve (max 1000)
         """
         self.limit = limit
+        # Apply the decorator to the method after initialization
+        self.retrieve_hist = self.batch_decorator(self.retrieve_hist)
 
     def batch_decorator(self, func):
     # Decorator that checks if batch size exceeds limit - if so calls retrieval multiple times
         @wraps(func)
         def wrapper(*args, **kwargs):
+
+            # Extract parameters from kwargs or use defaults
+            period_start = kwargs.get('period_start', [])
+            period_end = kwargs.get('period_end', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            self.interval_id = kwargs.get('interval_id', "1d")
+            
+            # Set date attributes
+            self.date_start = self.datetime_to_unix(period_start) * 1000
+            self.date_stop = self.datetime_to_unix(period_end) * 1000
+            
             # Initialize variables
             results = []
+            # call batch_info safely
             batch_info = self.batch_steps()
             
             # Check if batching is needed
@@ -71,8 +84,7 @@ class retrieval():
     
 
     # main functions
-    @batch_decorator
-    def retrieve_hist(self, symbol='BTCUSDT', interval_id="m5", period_start= [] , period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+    def retrieve_hist(self, symbol='BTCUSDT', interval_id="1d", period_start= [] , period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Retrieves data for specified coins at specific markets
         
@@ -105,9 +117,6 @@ class retrieval():
             ]
         ]
         """
-        self.date_start = self.datetime_to_unix(period_start)*1000
-        self.date_stop = self.datetime_to_unix(period_end)*1000
-        self.interval_id = interval_id
 
         #base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
         base_url = "https://api.binance.com/api/v3/klines"
@@ -122,10 +131,10 @@ class retrieval():
         # Parameters - using a dictionary makes it cleaner
         params = {
             "symbol": symbol,
-            "interval": interval_id,
+            "interval": self.interval_id,
             "startTime": self.date_start,
             "endTime": self.date_stop,
-            "limit": limit
+            "limit":    self.limit
         }
 
         response = requests.get(base_url, params=params)
@@ -230,61 +239,4 @@ class retrieval():
         # return number of batch steps
         return({"batch_size":(self.date_stop - self.date_start)/step_size,
                 "step_size":step_size})
-    
-    def batch_decorator(self, func):
-    # Decorator that checks if batch size exceeds limit - if so calls retrieval multiple times
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # Initialize variables
-            results = []
-            batch_info = self.batch_steps()
-            
-            # Check if batching is needed
-            if batch_info["batch_size"] < self.limit:  
-                return func(*args, **kwargs)
-            
-            # Get function signature
-            sig = inspect.signature(func)
-            bound_args = sig.bind(*args, **kwargs)
-            bound_args.apply_defaults()
-            
-            # Calculate number of calls needed
-            call_nr = max(1, int((batch_info['batch_size'] / batch_info['step_size']) / self.limit))
-            
-            # Initialize start and end boundaries
-            start = self.date_start
-            
-            # Loop to retrieve all batches
-            for call in range(call_nr):
-                bound_args.arguments['period_start'] = start
-                # Define the end of the batch
-                end = start + batch_info['step_size'] * self.limit
-                bound_args.arguments['period_end'] = end
-                
-                # Call the original function with modified arguments
-                batch_result = func(*bound_args.args, **bound_args.kwargs)
-                if batch_result:  # Only append if there are results
-                    results.append(batch_result)
-                    
-                # Update the new start point
-                start = end
-            
-            # Check if we need a final call for remaining data
-            if start < self.date_stop:
-                bound_args.arguments['period_start'] = start
-                bound_args.arguments['period_end'] = self.date_stop
-                batch_result = func(*bound_args.args, **bound_args.kwargs)
-                if batch_result:
-                    results.append(batch_result)
-                    
-            # Combine results if needed
-            if len(results) == 1:
-                return results[0]
-            elif isinstance(results[0], list):
-                # Flatten if results are lists
-                return [item for sublist in results for item in sublist]
-            else:
-                return results
-                
-        return wrapper  # Return the wrapper function
     
