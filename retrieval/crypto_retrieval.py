@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from functools import wraps
 import inspect
+from math import floor
 
 class retrieval():
     def __init__(self, limit = 1000):
@@ -27,12 +28,16 @@ class retrieval():
             # Set date attributes
             self.date_start = self.datetime_to_unix(period_start) * 1000
             self.date_stop = self.datetime_to_unix(period_end) * 1000
+
+            #save once for final comparison
+            self.final = self.datetime_to_unix(period_end) * 1000
             
             # Initialize variables
             results = []
             # call batch_info safely
             batch_info = self.batch_steps()
             
+            print(batch_info)
             # Check if batching is needed
             if batch_info["batch_size"] < self.limit:  
                 return func(*args, **kwargs)
@@ -43,43 +48,59 @@ class retrieval():
             bound_args.apply_defaults()
             
             # Calculate number of calls needed
-            call_nr = max(1, int((batch_info['batch_size'] / batch_info['step_size']) / self.limit))
-            
+            call_nr = floor(batch_info['batch_size']/self.limit)
+            print(call_nr)
+    
             # Initialize start and end boundaries
             start = self.date_start
+           
             
             # Loop to retrieve all batches
             for call in range(call_nr):
+                print("A call made")
                 bound_args.arguments['period_start'] = start
-                # Define the end of the batch
                 end = start + batch_info['step_size'] * self.limit
                 bound_args.arguments['period_end'] = end
                 
+                # Update self.date_start and self.date_stop before each call
+                self.date_start = start
+                self.date_stop = end
+                
+
                 # Call the original function with modified arguments
+                
                 batch_result = func(*bound_args.args, **bound_args.kwargs)
+        
                 if batch_result:  # Only append if there are results
                     results.append(batch_result)
                     
                 # Update the new start point
-                start = end
+                start = end 
+    
             
             # Check if we need a final call for remaining data
-            if start < self.date_stop:
+            
+            if start < self.final:
+                print("final stop not reached")
                 bound_args.arguments['period_start'] = start
-                bound_args.arguments['period_end'] = self.date_stop
+                end = self.final
+                bound_args.arguments['period_end'] = end
+                
+                # Update self.date_start and self.date_stop before each call
+                self.date_start = start
+                self.date_stop = end
+                
+
                 batch_result = func(*bound_args.args, **bound_args.kwargs)
                 if batch_result:
                     results.append(batch_result)
-                    
             # Combine results if needed
             if len(results) == 1:
                 return results[0]
             elif isinstance(results[0], list):
                 # Flatten if results are lists
                 return [item for sublist in results for item in sublist]
-            else:
-                return results
-                
+            
         return wrapper  # Return the wrapper function
     
 
@@ -127,7 +148,8 @@ class retrieval():
             "start": date_start*1000,
             "end": date_stop*1000
         } """
-
+        # save final stop
+        self.fin_stop = self.datetime_to_unix(period_end)
         # Parameters - using a dictionary makes it cleaner
         params = {
             "symbol": symbol,
@@ -139,7 +161,7 @@ class retrieval():
 
         response = requests.get(base_url, params=params)
 
-        return(response)
+        return(response.json())
 
     
     def stream(self, coin_id, market_id='binance') :
@@ -178,6 +200,27 @@ class retrieval():
             unix_time = int(dt_object.timestamp())
             
         return unix_time
+    
+    def unix_to_datetime(self, dt_str, format_str='%Y-%m-%d %H:%M:%S'):
+        """
+        Convert a datetime string to Unix timestamp
+        
+        Parameters:
+        dt_str (str): Datetime string to convert
+        format_str (str): Format of the input datetime string
+        
+        Returns:
+        int: Unix timestamp in seconds
+        """
+         # Convert Unix timestamp to datetime object
+        dt_object = datetime.fromtimestamp(int(dt_str)/1000)
+    
+        # Format datetime object as string
+        formatted_date = dt_object.strftime(format_str)
+            
+        return formatted_date
+    
+
     
     def request_fun(self, url_str, pl={}, hd={}):
         """
