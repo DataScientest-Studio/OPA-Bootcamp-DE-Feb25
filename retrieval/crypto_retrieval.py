@@ -1,6 +1,7 @@
 import requests
 import json
 from datetime import datetime
+from time import sleep
 from functools import wraps
 import inspect
 from math import floor
@@ -12,6 +13,7 @@ class retrieval():
         limit (int): Number of records to retrieve (max 1000)
         """
         self.limit = limit
+        self.counter = 0
         # Apply the decorator to the method after initialization
         self.retrieve_hist = self.batch_decorator(self.retrieve_hist)
 
@@ -150,6 +152,10 @@ class retrieval():
         } """
         # save final stop
         self.fin_stop = self.datetime_to_unix(period_end)
+
+        # update counter to not exceed binance limits:
+        self.limit_check()
+        
         # Parameters - using a dictionary makes it cleaner
         params = {
             "symbol": symbol,
@@ -283,3 +289,21 @@ class retrieval():
         return({"batch_size":(self.date_stop - self.date_start)/step_size,
                 "step_size":step_size})
     
+    def limit_check(self, add=1):
+        """
+        # function to make sure we do not exceed request limits of a thousand per minute
+
+        
+        Parameters:
+        add (int) -  adds one per times we call the historical data retrieval function
+        
+        
+        Returns:
+        self.counter: updated count of calls and stops for one minute if %self.limit = 0
+
+        """
+        self.counter += add
+        if self.counter%self.limit == 0:
+            sleep(60)
+        else:
+            pass
