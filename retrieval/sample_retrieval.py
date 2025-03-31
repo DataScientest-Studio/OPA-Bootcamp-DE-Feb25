@@ -1,19 +1,36 @@
 from crypto_retrieval import retrieval
+from datetime import datetime
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 ret = retrieval()
-data = ret.retrieve_hist(interval_id="1d")
-print(data)
-""" df_transform = pd.json_normalize(data['data'])
-df_transform['date'] = pd.to_datetime(df_transform['date'])
-df_transform['priceUsd'] = pd.to_numeric(df_transform['priceUsd'])
-print(df_transform)
-sns.set_theme(style="darkgrid")
+data = ret.retrieve_hist(period_start="2025-01-17 00:00:00", interval_id="30m")
 
-plt.figure(figsize=(8, 6))
-sns.lineplot(x="date", y="priceUsd",
-             data=df_transform)
-plt.title('Bitcoin Price over time')
-plt.show()  """
+# Column names
+columns = [
+    'open_time', 
+    'open', 
+    'high', 
+    'low', 
+    'close', 
+    'volume', 
+    'close_time', 
+    'quote_asset_volume', 
+    'number_of_trades', 
+    'taker_buy_base_asset_volume', 
+    'taker_buy_quote_asset_volume', 
+    'ignore'
+]
+
+print(data[0])
+# Create DataFrame
+df = pd.DataFrame(columns=columns)
+
+# append rows
+# Create DataFrame
+for i in range(len(data)):
+    df.loc[i,] = data[i]
+
+df['open_time'] = df['open_time'].apply(ret.unix_to_datetime)
+
+
+
