@@ -69,6 +69,9 @@ for row in data:
     # first drop the last index, that is garbage and the first which goes in another table:
     dat = row[1:-1]
 
+    # make list numeric
+    dat = [float(item) for item in dat]
+
     # transform time ID to standard datetime format
     time = ret.unix_to_datetime(row[0])
 
@@ -85,47 +88,47 @@ for row in data:
     conn.commit()
 
     # next setup the list we will put in the main table by retrieving the relevant variables
-    cur.execute("""SELECT Time_ID 
+    cur.execute("""SELECT Time_ID
                 FROM Time_ID
-                WHERE Time_stamp = %s);""", time)
+                WHERE Time_stamp = %s""", [time])
     
     # get id
     time_id = cur.fetchone()
 
     # same for interval
-    cur.execute("""SELECT Interval_ID 
+    cur.execute("""SELECT Interval_ID
                 FROM Interval_ID
-                WHERE Interval_name = %s);""", ret.interval)
-    
+                WHERE Interval_name = %s""", [ret.interval])
+        
     # get id
     interval_id = cur.fetchone()
 
     # same for crypto
-    cur.execute("""SELECT Crypto_ID 
+    cur.execute("""SELECT Crypto_ID
                 FROM Crypto_ID
-                WHERE Crypto_name = %s);""", ret.coin)
+                WHERE Crypto_name = %s""", [ret.coin])
     
     # get id
     Crypto_id = cur.fetchone()
 
     # same for currency
-    cur.execute("""SELECT Currency_ID 
+    cur.execute("""SELECT Currency_ID
                 FROM Currency_ID
-                WHERE Currency_name = %s);""", ret.currency)
+                WHERE Currency_name = %s""", [ret.currency])
     
     # get id
     Currency_id = cur.fetchone()
 
     # put the full row together
-    new_list = [time_id, Crypto_id , Currency_id, interval_id] + dat
+    new_list = [time_id[0], Crypto_id[0], Currency_id[0], interval_id[0]] + dat
 
     # insert in to the main database
     cur.execute("""INSERT INTO Main_Tb (Time_ID, Crypto_ID, Currency_ID, 
-                Interval_ID, Open_price, Close_price, High_price, Low_price,
-                Volume, Close_time, Nr_trades, Quote_asset_volume, TB_based_asset_volume,
-                TB_quote_asset_volume)
-                VALUES (%s);
-                """, new_list)
+             Interval_ID, Open_price, Close_price, High_price, Low_price,
+             Volume, Close_time, Nr_trades, Quote_asset_volume, TB_based_asset_volume,
+             TB_quote_asset_volume)
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+             """, new_list)
     
     #commit changes
     conn.commit()

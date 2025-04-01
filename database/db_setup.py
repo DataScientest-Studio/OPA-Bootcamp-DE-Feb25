@@ -60,7 +60,7 @@ cur.execute("""CREATE TABLE IF NOT EXISTS Main_Tb(
     High_price float NOT NULL,
     Low_price float NOT NULL,
     Volume float NOT NULL,
-    Close_time date NOT NULL,
+    Close_time float NOT NULL,
     Nr_trades int NOT NULL,
     Quote_asset_volume float NOT NULL,
     TB_based_asset_volume float NOT NULL,
