@@ -2,8 +2,8 @@ import psycopg2
 
 # load host address
 with open('host.txt', 'r') as file:
-    host_name = file.read()  # Reads entire file as a string
-
+    lines = file.readlines()  # Returns a list of lines
+    host_name = lines[0].strip()  # remove trailing white space
 #connect database
 conn = psycopg2.connect(database="crypto_db",
                         host=host_name,
