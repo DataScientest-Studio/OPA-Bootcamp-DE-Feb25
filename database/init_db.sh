@@ -34,6 +34,6 @@ echo "Set-up timescale DB databse schema"
 python3 db_setup.py
 
 echo "Retrieve historical data to be loaded into DB"
-#python3 hist_ret.py
+python3 hist_ret.py
 
 echo "Setup complete! Your TimescaleDB is ready to use."
