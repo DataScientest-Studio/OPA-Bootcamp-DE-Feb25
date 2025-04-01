@@ -174,13 +174,7 @@ class retrieval():
 
         response = requests.get(base_url, params=params)
 
-        # transform response to json
-        response = response.json()
-
-        # transform all output to numeric not strings
-        numeric_response = [float(item) for item in response]
-
-        return(numeric_response)
+        return(response.json())
 
     
     def stream(self, coin_id, market_id='binance') :
