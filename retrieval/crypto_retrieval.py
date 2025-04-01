@@ -107,7 +107,7 @@ class retrieval():
     
 
     # main functions
-    def retrieve_hist(self, symbol='BTCUSDT', interval_id="1d", period_start= [] , period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+    def retrieve_hist(self, coin ='BTC', currency = 'USDT', interval_id="1d", period_start= [] , period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Retrieves data for specified coins at specific markets
         
@@ -140,6 +140,13 @@ class retrieval():
             ]
         ]
         """
+        #save important variables
+        self.currency =  currency
+        self.interval = interval_id
+        self.coin = coin
+
+        # put together currency and coin
+        symbol = coin + currency
 
         #base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
         base_url = "https://api.binance.com/api/v3/klines"
