@@ -4,9 +4,14 @@ set -e  # Exit immediately if a command exits with a non-zero status
 # Print each command for debugging
 set -x
 
-
-
 echo "Starting TimescaleDB setup process"
+
+# get user input for host information
+read -p "Please enter the database address: " DB_NAME
+#create and empty host.txt file
+touch host.txt
+# write infos
+echo $DB_NAME > host.txt
 
 # 1. Start Docker containers from the docker-compose file
 echo "Starting Docker containers"
