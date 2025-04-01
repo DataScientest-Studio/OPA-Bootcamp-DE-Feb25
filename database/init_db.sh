@@ -19,7 +19,7 @@ docker-compose up -d
 
 # 2. Wait for the database to be ready
 echo "Waiting for TimescaleDB to be ready"
-sleep 20  # Simple approach
+sleep 10  # Simple approach
 
 echo "TimescaleDB is ready!"
 
@@ -34,6 +34,6 @@ echo "Set-up timescale DB databse schema"
 python3 db_setup.py
 
 echo "Retrieve historical data to be loaded into DB"
-python3 hist_ret.py
+#python3 hist_ret.py
 
 echo "Setup complete! Your TimescaleDB is ready to use."

@@ -10,8 +10,7 @@ services:
       POSTGRES_DB: crypto_db
     ports:
       - "5432:5432"
-  volumes:
-      - timescaledb_data:/var/lib/postgresql/data
+
   pgadmin:
     container_name: pgadmin4_container
     image: dpage/pgadmin4
@@ -21,11 +20,4 @@ services:
       PGADMIN_DEFAULT_PASSWORD: data_engineer
     ports:
       - "5050:80"
-  healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-volumes:
-  timescaledb_data:
-    driver: local
+
