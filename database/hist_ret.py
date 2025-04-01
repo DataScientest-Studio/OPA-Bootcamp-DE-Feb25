@@ -75,6 +75,9 @@ for row in data:
     # transform time ID to standard datetime format
     time = ret.unix_to_datetime(row[0])
 
+    # also transform closing time
+    dat[5] = ret.unix_to_datetime(dat[5])
+
 
     # insert the primary key time
     cur.execute("""INSERT INTO Time_ID (Time_stamp)
@@ -129,6 +132,5 @@ for row in data:
              TB_quote_asset_volume)
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
              """, new_list)
-    
     #commit changes
     conn.commit()
