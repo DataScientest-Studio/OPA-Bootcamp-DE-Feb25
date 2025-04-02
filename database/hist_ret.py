@@ -1,6 +1,7 @@
 import sys
 import os
 import psycopg2
+import numpy as np
 
 # load host address
 with open('host.txt', 'r') as file:
@@ -21,6 +22,17 @@ ret = retrieval()
 # retrieva data
 data = ret.retrieve_hist(period_start="2025-01-17 00:00:00", interval_id="30m")
 
+# make elements numeric
+data = [[float(item) for item in sublist] for sublist in data]
+
+# transfrom data into numpy array so that it is more workable - use object array for mixed data
+data = np.array(data, dtype=object)
+
+# transform open and close time to standard datetime format
+dat[0] = ret.unix_to_datetime(dat[0])
+dat[6] = ret.unix_to_datetime(dat[6])
+# transform
+
 """ write data into tables"""
 
 #connect database
@@ -34,16 +46,6 @@ conn = psycopg2.connect(database="crypto_db",
 cur = conn.cursor()
 
 
-
-# insert the primary keys currency
-cur.execute("""
-INSERT INTO Currency_ID (Currency_name)
-SELECT %s
-WHERE NOT EXISTS (
-    SELECT 1 FROM Currency_ID 
-    WHERE Currency_name = %s
-);
-""", (ret.currency, ret.currency))
 
 # insert the primary keys coin
 cur.execute("""
@@ -65,18 +67,44 @@ WHERE NOT EXISTS (
 #commit changes
 conn.commit()
 
+ # same for interval
+cur.execute("""SELECT Interval_ID
+                FROM Interval_ID
+                WHERE Interval_name = %s""", [ret.interval])
+        
+# get id
+interval_id = cur.fetchone()
+
+# same for crypto
+cur.execute("""SELECT Crypto_ID
+                FROM Crypto_ID
+                WHERE Crypto_name = %s""", [ret.coin])
+
+# get id
+Coin_id = cur.fetchone()
+
+
+
+# create array with currency name
+np_cur = np.concatenate((
+    np.tile(Coin_id, (data.shape[0], 1)),  # Create a column of 1s
+    np.tile(interval_id, (data.shape[0], 1)),  # Create a column of 2s
+    np.tile(ret.currency, (data.shape[0], 1))   # Create a column of 3s
+), axis=1)  # Concatenate along columns
+
+# concatenate with the data array
+full_df = np.concatenate((np_cur, data), axis = 1)
+
 for row in data:
     # first drop the last index, that is garbage and the first which goes in another table:
-    dat = row[1:-1]
+    dat = row[:-1]
 
     # make list numeric
     dat = [float(item) for item in dat]
 
-    # transform time ID to standard datetime format
-    time = ret.unix_to_datetime(row[0])
-
-    # also transform closing time
-    dat[5] = ret.unix_to_datetime(dat[5])
+    # transform open and close time to standard datetime format
+    dat[0] = ret.unix_to_datetime(dat[0])
+    dat[6] = ret.unix_to_datetime(dat[6])
 
 
     # insert the primary key time
