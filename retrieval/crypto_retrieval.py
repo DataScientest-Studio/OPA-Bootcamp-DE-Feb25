@@ -5,6 +5,7 @@ from time import sleep
 from functools import wraps
 import inspect
 from math import floor
+import pandas as pd
 
 class retrieval():
     def __init__(self, limit = 1000):
@@ -225,12 +226,21 @@ class retrieval():
         Returns:
         int: Unix timestamp in seconds
         """
-         # Convert Unix timestamp to datetime object
-        dt_object = datetime.fromtimestamp(int(dt_str)/1000)
-    
-        # Format datetime object as string
-        formatted_date = dt_object.strftime(format_str)
-            
+
+        # vectorized processing if we have more than one value
+        if len(dt_str) > 1:
+            # Convert to numpy array and process all at once
+            timestamps_array = dt_str / 1000
+
+            # Using pandas to vectorize the conversion
+            formatted_date = pd.to_datetime(timestamps_array, unit='s').strftime(format_str).tolist()
+        else:  
+            # Convert Unix timestamp to datetime object
+            dt_object = datetime.fromtimestamp(int(dt_str)/1000)
+        
+            # Format datetime object as string
+            formatted_date = dt_object.strftime(format_str)
+                
         return formatted_date
     
 
