@@ -42,7 +42,7 @@ print("-- Create Update Record table")
 print("---------------------------------")
 cur.execute("""CREATE TABLE IF NOT EXISTS Update_Record(
     Update_ID serial PRIMARY KEY,
-    Update_date DATETIME NOT NULL
+    Update_date TIMESTAMP NOT NULL
 );""")
 
 
@@ -55,13 +55,13 @@ cur.execute("""CREATE TABLE IF NOT EXISTS Main_Tb(
     Crypto_ID INTEGER REFERENCES Crypto_ID(Crypto_ID),
     Interval_ID INTEGER REFERENCES Interval_ID(Interval_ID),
     Currency_name varchar(200) NOT NULL,
-    Open_time DATETIME,
+    Open_time TIMESTAMP,
     Open_price float NOT NULL,
     Close_price float NOT NULL,
     High_price float NOT NULL,
     Low_price float NOT NULL,
     Volume float NOT NULL,
-    Close_time DATETIME,
+    Close_time TIMESTAMP,
     Nr_trades int NOT NULL,
     Quote_asset_volume float NOT NULL,
     TB_based_asset_volume float NOT NULL,
