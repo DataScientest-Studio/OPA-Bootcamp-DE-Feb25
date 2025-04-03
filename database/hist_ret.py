@@ -2,6 +2,7 @@ import sys
 import os
 import psycopg2
 import numpy as np
+from datetime import datetime
 
 # load host address
 with open('host.txt', 'r') as file:
@@ -45,7 +46,10 @@ conn = psycopg2.connect(database="crypto_db",
 # next create a cursor
 cur = conn.cursor()
 
-
+# record retrieval date
+cur.execute("""
+INSERT INTO Update_Record (Update_date)
+VALUES (%s);""", (datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
 # insert the primary keys coin
 cur.execute("""
@@ -95,70 +99,26 @@ np_cur = np.concatenate((
 # concatenate with the data array
 full_df = np.concatenate((np_cur, data), axis = 1)
 
-for row in data:
-    # first drop the last index, that is garbage and the first which goes in another table:
-    dat = row[:-1]
+# transform data back 
+from io import StringIO
 
-    # make list numeric
-    dat = [float(item) for item in dat]
+csv_data = StringIO()
+np.savetxt(csv_data, full_df, delimiter=',', fmt='%s')
+csv_data.seek(0)
 
-    # transform open and close time to standard datetime format
-    dat[0] = ret.unix_to_datetime(dat[0])
-    dat[6] = ret.unix_to_datetime(dat[6])
+# Use COPY to insert data directly
+cur.copy_from(
+    csv_data,
+    'Main_tb',  # Target table
+    sep=',',       # Delimiter in your CSV data
+    columns=( 'Crypto_ID', 'Interval_ID', 'Currency_name' , 'Open_time',
+             'Open_price', 'Close_price', 'High_price', 'Low_price',
+             'Volume', 'Close_time', 'Nr_trades', 'Quote_asset_volume', 
+             'TB_based_asset_volume', 'TB_quote_asset_volume'))
 
+# Commit the transaction
+conn.commit()
 
-    # insert the primary key time
-    cur.execute("""INSERT INTO Time_ID (Time_stamp)
-    SELECT %s
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Time_ID
-        WHERE Time_stamp = %s
-    );""", (time, time))
-
-    #commit changes
-    conn.commit()
-
-    # next setup the list we will put in the main table by retrieving the relevant variables
-    cur.execute("""SELECT Time_ID
-                FROM Time_ID
-                WHERE Time_stamp = %s""", [time])
-    
-    # get id
-    time_id = cur.fetchone()
-
-    # same for interval
-    cur.execute("""SELECT Interval_ID
-                FROM Interval_ID
-                WHERE Interval_name = %s""", [ret.interval])
-        
-    # get id
-    interval_id = cur.fetchone()
-
-    # same for crypto
-    cur.execute("""SELECT Crypto_ID
-                FROM Crypto_ID
-                WHERE Crypto_name = %s""", [ret.coin])
-    
-    # get id
-    Crypto_id = cur.fetchone()
-
-    # same for currency
-    cur.execute("""SELECT Currency_ID
-                FROM Currency_ID
-                WHERE Currency_name = %s""", [ret.currency])
-    
-    # get id
-    Currency_id = cur.fetchone()
-
-    # put the full row together
-    new_list = [time_id[0], Crypto_id[0], Currency_id[0], interval_id[0]] + dat
-
-    # insert in to the main database
-    cur.execute("""INSERT INTO Main_Tb (Time_ID, Crypto_ID, Currency_ID, 
-             Interval_ID, Open_price, Close_price, High_price, Low_price,
-             Volume, Close_time, Nr_trades, Quote_asset_volume, TB_based_asset_volume,
-             TB_quote_asset_volume)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-             """, new_list)
-    #commit changes
-    conn.commit()
+# Close the connection
+cur.close()
+conn.close()

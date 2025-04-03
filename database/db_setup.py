@@ -51,7 +51,7 @@ print("---------------------------------")
 print("-- Create Main_Tb table")
 print("---------------------------------")
 cur.execute("""CREATE TABLE IF NOT EXISTS Main_Tb(
-    Index serial PRIMARY KEY,
+    id serial PRIMARY KEY,
     Crypto_ID INTEGER REFERENCES Crypto_ID(Crypto_ID),
     Interval_ID INTEGER REFERENCES Interval_ID(Interval_ID),
     Currency_name varchar(200) NOT NULL,
