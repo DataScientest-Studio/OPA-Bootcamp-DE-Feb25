@@ -8,6 +8,7 @@ from math import floor
 import pandas as pd
 import psycopg2
 import numpy as np
+from io import StringIO
 
 
 class retrieval():
@@ -47,14 +48,17 @@ class retrieval():
             batch_info = self.batch_steps(date_start = start, date_stop = end)
             
             print(batch_info)
-            # Check if batching is needed
-            if batch_info["batch_size"] < self.limit:  
-                return func(*args, **kwargs)
-            
+
             # Get function signature
             sig = inspect.signature(func)
             bound_args = sig.bind(*args, **kwargs)
             bound_args.apply_defaults()
+
+            # Check if batching is not needed
+            if batch_info["batch_size"] < self.limit:
+                bound_args.arguments['period_start'] = start
+                bound_args.arguments['period_end'] = end  
+                return func(*bound_args.args, **bound_args.kwargs)
             
             # Calculate number of calls needed
             call_nr = floor(batch_info['batch_size']/self.limit)
@@ -82,7 +86,7 @@ class retrieval():
             # Check if we need a final call for remaining data
             
             if start < self.final:
-                print("final stop not reached")
+                print("Final stop reached")
                 bound_args.arguments['period_start'] = start
                 end = self.final
                 bound_args.arguments['period_end'] = end
@@ -138,6 +142,8 @@ class retrieval():
         self.currency =  currency
         self.interval = interval_id
         self.coin = coin
+
+
 
         # put together currency and coin
         symbol = coin + currency
@@ -309,7 +315,9 @@ class retrieval():
         else:
             pass
 
-    def hist_update(self, data, time_stamp, host_info):
+    def db_update(self, coin, period_start, interval_id,  time_stamp, host_info):
+     
+        data = self.retrieve_hist(coin = coin, period_start=period_start, interval_id=interval_id)
 
         # make elements numeric
         data = [[float(item) for item in sublist] for sublist in data]
@@ -389,9 +397,6 @@ class retrieval():
         # concatenate with the data array
         full_df = np.concatenate((np_cur, data), axis = 1)
 
-        # transform data back 
-        from io import StringIO
-
         csv_data = StringIO()
         np.savetxt(csv_data, full_df, delimiter='|', fmt='%s')  # Change delimiter to pipe
         csv_data.seek(0)
@@ -411,4 +416,18 @@ class retrieval():
         cur.close()
         conn.close()
 
+    def hist_update(self, time_stamp, host_info, period_start):
+
+        # loop through coins and intervals
+        for coin in self.coin_list:
+            print(coin)
+            for interval in self.interval_list:
+                self.db_update(coin = coin, 
+                               period_start = period_start, 
+                               interval_id = interval,  
+                               time_stamp = time_stamp, 
+                               host_info = host_info)
+
+
+                
 

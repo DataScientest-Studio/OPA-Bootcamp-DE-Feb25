@@ -18,110 +18,13 @@ sys.path.append(path + "/retrieval")
 from crypto_retrieval import retrieval
 
 # initialize class
-ret = retrieval()
+ret = retrieval(coin_list = ["XRP", "DOGE", "ETH"], interval_list = [ "1h", "1d"])
 
 # save time at which we retriev data
 update_stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # retrieva data
-data = ret.retrieve_hist(period_start="2025-01-17 00:00:00", interval_id="30m")
+#data = ret.retrieve_hist(period_start="2025-01-17 00:00:00", interval_id="30m")
 
-# make elements numeric
-data = [[float(item) for item in sublist] for sublist in data]
-
-# transfrom data into numpy array so that it is more workable - use object array for mixed data
-data = np.array(data, dtype=object)
-
-# transform open and close time to standard datetime format
-data[:,0] = ret.unix_to_datetime(data[:,0])
-data[:,6] = ret.unix_to_datetime(data[:,6])
-
-# drop the last column, does not contain important info
-data = np.delete(data, -1, 1)
-
-""" write data into tables"""
-
-#connect database
-conn = psycopg2.connect(database="crypto_db",
-                        host=host_name,
-                        user="daniel",
-                        password="datascientest",
-                        port=5432)
-
-# next create a cursor
-cur = conn.cursor()
-
-# record retrieval date
-cur.execute("""
-INSERT INTO Update_Record (Update_date)
-VALUES (%s);""", (update_stamp),)
-
-# insert the primary keys coin
-cur.execute("""
-INSERT INTO Crypto_ID (Crypto_name)
-SELECT %s
-WHERE NOT EXISTS (
-    SELECT 1 FROM Crypto_ID 
-    WHERE Crypto_name = %s
-);""", (ret.coin, ret.coin))
-
-# insert the primary keys interval
-cur.execute("""INSERT INTO Interval_ID (Interval_name)
-SELECT %s
-WHERE NOT EXISTS (
-    SELECT 1 FROM Interval_ID 
-    WHERE Interval_name = %s
-);""", (ret.interval, ret.interval))
-
-#commit changes
-conn.commit()
-
- # same for interval
-cur.execute("""SELECT Interval_ID
-                FROM Interval_ID
-                WHERE Interval_name = %s""", [ret.interval])
-        
-# get id
-interval_id = cur.fetchone()
-
-# same for crypto
-cur.execute("""SELECT Crypto_ID
-                FROM Crypto_ID
-                WHERE Crypto_name = %s""", [ret.coin])
-
-# get id
-Coin_id = cur.fetchone()
-
-
-
-# create array with currency name
-np_cur = np.concatenate((
-    np.tile(Coin_id, (data.shape[0], 1)),  
-    np.tile(interval_id, (data.shape[0], 1)),  
-    np.tile(ret.currency, (data.shape[0], 1))   
-), axis=1)  # Concatenate along columns
-
-# concatenate with the data array
-full_df = np.concatenate((np_cur, data), axis = 1)
-
-# transform data back 
-from io import StringIO
-
-csv_data = StringIO()
-np.savetxt(csv_data, full_df, delimiter='|', fmt='%s')  # Change delimiter to pipe
-csv_data.seek(0)
-
-cur.copy_from(
-    csv_data,
-    'main_tb',
-    sep='|',  # Match the delimiter you used above
-    columns=('crypto_id', 'interval_id', 'currency_name', 'open_time',
-             'open_price', 'close_price', 'high_price', 'low_price',
-             'volume', 'close_time',  'quote_asset_volume', 'nr_trades',
-             'tb_based_asset_volume', 'tb_quote_asset_volume'))
-# Commit the transaction
-conn.commit()
-
-# Close the connection
-cur.close()
-conn.close()
+# update historical tables 
+ret.hist_update(period_start="2025-03-17 00:00:00",time_stamp=update_stamp, host_info=host_name)
