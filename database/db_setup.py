@@ -17,7 +17,7 @@ cur = conn.cursor()
 print("---------------------------------")
 print("-- Delete any previously existing table witht the same name")
 print("---------------------------------")
-cur.execute("""DROP TABLE IF EXISTS Crypto_ID, Interval_ID, Main_Tb;""")
+cur.execute("""DROP TABLE IF EXISTS Crypto_ID, Interval_ID, Main_Tb, Update_Record;""")
 conn.commit()
 
 print("---------------------------------")
@@ -37,12 +37,21 @@ cur.execute("""CREATE TABLE IF NOT EXISTS Interval_ID(
     Interval_name varchar(200) NOT NULL
 );""")
 
+print("---------------------------------")
+print("-- Create Update Record table")
+print("---------------------------------")
+cur.execute("""CREATE TABLE IF NOT EXISTS Update_Record(
+    Update_ID serial PRIMARY KEY,
+    Update_date DATETIME NOT NULL
+);""")
+
 
 
 print("---------------------------------")
 print("-- Create Main_Tb table")
 print("---------------------------------")
 cur.execute("""CREATE TABLE IF NOT EXISTS Main_Tb(
+    Index serial PRIMARY KEY,
     Crypto_ID INTEGER REFERENCES Crypto_ID(Crypto_ID),
     Interval_ID INTEGER REFERENCES Interval_ID(Interval_ID),
     Currency_name varchar(200) NOT NULL,
