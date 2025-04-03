@@ -20,6 +20,9 @@ from crypto_retrieval import retrieval
 # initialize class
 ret = retrieval()
 
+# save time at which we retriev data
+update_stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 # retrieva data
 data = ret.retrieve_hist(period_start="2025-01-17 00:00:00", interval_id="30m")
 
@@ -35,7 +38,6 @@ data[:,6] = ret.unix_to_datetime(data[:,6])
 
 # drop the last column, does not contain important info
 data = np.delete(data, -1, 1)
-print(data[0,])
 
 """ write data into tables"""
 
@@ -52,7 +54,7 @@ cur = conn.cursor()
 # record retrieval date
 cur.execute("""
 INSERT INTO Update_Record (Update_date)
-VALUES (%s);""", (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
+VALUES (%s);""", (update_stamp),)
 
 # insert the primary keys coin
 cur.execute("""
@@ -94,9 +96,9 @@ Coin_id = cur.fetchone()
 
 # create array with currency name
 np_cur = np.concatenate((
-    np.tile(Coin_id, (data.shape[0], 1)),  # Create a column of 1s
-    np.tile(interval_id, (data.shape[0], 1)),  # Create a column of 2s
-    np.tile(ret.currency, (data.shape[0], 1))   # Create a column of 3s
+    np.tile(Coin_id, (data.shape[0], 1)),  
+    np.tile(interval_id, (data.shape[0], 1)),  
+    np.tile(ret.currency, (data.shape[0], 1))   
 ), axis=1)  # Concatenate along columns
 
 # concatenate with the data array
