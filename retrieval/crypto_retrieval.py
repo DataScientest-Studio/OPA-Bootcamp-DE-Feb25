@@ -6,9 +6,12 @@ from functools import wraps
 import inspect
 from math import floor
 import pandas as pd
+import psycopg2
+import numpy as np
+
 
 class retrieval():
-    def __init__(self, limit = 1000):
+    def __init__(self, limit = 1000, coin_list = [], interval_list = [], end = datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
         """
         Parameters:
         limit (int): Number of records to retrieve (max 1000)
@@ -17,6 +20,9 @@ class retrieval():
         self.counter = 0
         # Apply the decorator to the method after initialization
         self.retrieve_hist = self.batch_decorator(self.retrieve_hist)
+        self.interval_list = interval_list
+        self.coin_list = coin_list
+        self.period_end = end
 
     def batch_decorator(self, func):
     # Decorator that checks if batch size exceeds limit - if so calls retrieval multiple times
@@ -24,21 +30,21 @@ class retrieval():
         def wrapper(*args, **kwargs):
 
             # Extract parameters from kwargs or use defaults
-            period_start = kwargs.get('period_start', [])
-            period_end = kwargs.get('period_end', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            p_start = kwargs.get('period_start', [])
+            p_end = kwargs.get('period_end', self.period_end)
             self.interval_id = kwargs.get('interval_id', "1d")
             
             # Set date attributes
-            self.date_start = self.datetime_to_unix(period_start) * 1000
-            self.date_stop = self.datetime_to_unix(period_end) * 1000
+            start = self.datetime_to_unix(p_start) * 1000
+            end = self.datetime_to_unix(p_end) * 1000
 
             #save once for final comparison
-            self.final = self.datetime_to_unix(period_end) * 1000
+            self.final = self.datetime_to_unix(p_end) * 1000
             
             # Initialize variables
             results = []
             # call batch_info safely
-            batch_info = self.batch_steps()
+            batch_info = self.batch_steps(date_start = start, date_stop = end)
             
             print(batch_info)
             # Check if batching is needed
@@ -54,8 +60,6 @@ class retrieval():
             call_nr = floor(batch_info['batch_size']/self.limit)
             print(call_nr)
     
-            # Initialize start and end boundaries
-            start = self.date_start
            
             
             # Loop to retrieve all batches
@@ -64,14 +68,8 @@ class retrieval():
                 bound_args.arguments['period_start'] = start
                 end = start + batch_info['step_size'] * self.limit
                 bound_args.arguments['period_end'] = end
-                
-                # Update self.date_start and self.date_stop before each call
-                self.date_start = start
-                self.date_stop = end
-                
 
                 # Call the original function with modified arguments
-                
                 batch_result = func(*bound_args.args, **bound_args.kwargs)
         
                 if batch_result:  # Only append if there are results
@@ -88,11 +86,6 @@ class retrieval():
                 bound_args.arguments['period_start'] = start
                 end = self.final
                 bound_args.arguments['period_end'] = end
-                
-                # Update self.date_start and self.date_stop before each call
-                self.date_start = start
-                self.date_stop = end
-                
 
                 batch_result = func(*bound_args.args, **bound_args.kwargs)
                 if batch_result:
@@ -108,7 +101,7 @@ class retrieval():
     
 
     # main functions
-    def retrieve_hist(self, coin ='BTC', currency = 'USDT', interval_id="1d", period_start= [] , period_end=datetime.now().strftime("%Y-%m-%d %H:%M:%S")):
+    def retrieve_hist(self, coin ='BTC', currency = 'USDT', interval_id="1d", period_start= [] , period_end=[]):
         """
         Retrieves data for specified coins at specific markets
         
@@ -152,24 +145,15 @@ class retrieval():
         #base_url = "http://api.coincap.io/v2/assets/bitcoin/history"
         base_url = "https://api.binance.com/api/v3/klines"
 
-        """ # Parameters - using a dictionary makes it cleaner - dictionary is for coinCap
-        params = {
-            "interval": interval_id,
-            "start": date_start*1000,
-            "end": date_stop*1000
-        } """
-        # save final stop
-        self.fin_stop = self.datetime_to_unix(period_end)
-
         # update counter to not exceed binance limits:
         self.limit_check()
         
         # Parameters - using a dictionary makes it cleaner
         params = {
             "symbol": symbol,
-            "interval": self.interval_id,
-            "startTime": self.date_start,
-            "endTime": self.date_stop,
+            "interval": self.interval,
+            "startTime": period_start,
+            "endTime": period_end,
             "limit":    self.limit
         }
 
@@ -282,7 +266,7 @@ class retrieval():
         #ex_names = [ex_data['exchangeId'] for ex_data in data['data']]
         return(data)
     
-    def batch_steps(self):
+    def batch_steps(self, date_start, date_stop):
         """
         # determine stepsize by unit because the limit for retrieval is 1000 on binance
         
@@ -303,7 +287,7 @@ class retrieval():
 
         
         # return number of batch steps
-        return({"batch_size":(self.date_stop - self.date_start)/step_size,
+        return({"batch_size":(date_stop - date_start)/step_size,
                 "step_size":step_size})
     
     def limit_check(self, add=1):
@@ -324,3 +308,107 @@ class retrieval():
             sleep(60)
         else:
             pass
+
+    def hist_update(self, data, time_stamp, host_info):
+
+        # make elements numeric
+        data = [[float(item) for item in sublist] for sublist in data]
+
+        # transfrom data into numpy array so that it is more workable - use object array for mixed data
+        data = np.array(data, dtype=object)
+
+        # transform open and close time to standard datetime format
+        data[:,0] = self.unix_to_datetime(data[:,0])
+        data[:,6] = self.unix_to_datetime(data[:,6])
+
+        # drop the last column, does not contain important info
+        data = np.delete(data, -1, 1)
+
+        """ write data into tables"""
+
+        #connect database
+        conn = psycopg2.connect(database="crypto_db",
+                                host=host_info,
+                                user="daniel",
+                                password="datascientest",
+                                port=5432)
+        
+        # next create a cursor
+        cur = conn.cursor()
+
+        # record retrieval date
+        cur.execute("""
+        INSERT INTO Update_Record (Update_date)
+        VALUES (%s);""", (time_stamp,)) 
+
+        # insert the primary keys coin
+        cur.execute("""
+        INSERT INTO Crypto_ID (Crypto_name)
+        SELECT %s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Crypto_ID 
+            WHERE Crypto_name = %s
+        );""", (self.coin, self.coin))
+
+        # insert the primary keys interval
+        cur.execute("""INSERT INTO Interval_ID (Interval_name)
+        SELECT %s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Interval_ID 
+            WHERE Interval_name = %s
+        );""", (self.interval, self.interval))
+
+        #commit changes
+        conn.commit()
+
+        # same for interval
+        cur.execute("""SELECT Interval_ID
+                        FROM Interval_ID
+                        WHERE Interval_name = %s""", [self.interval])
+                
+        # get id
+        interval_id = cur.fetchone()
+
+        # same for crypto
+        cur.execute("""SELECT Crypto_ID
+                        FROM Crypto_ID
+                        WHERE Crypto_name = %s""", [self.coin])
+
+        # get id
+        Coin_id = cur.fetchone()
+
+
+
+        # create array with currency name
+        np_cur = np.concatenate((
+            np.tile(Coin_id, (data.shape[0], 1)),  
+            np.tile(interval_id, (data.shape[0], 1)),  
+            np.tile(self.currency, (data.shape[0], 1))   
+        ), axis=1)  # Concatenate along columns
+
+        # concatenate with the data array
+        full_df = np.concatenate((np_cur, data), axis = 1)
+
+        # transform data back 
+        from io import StringIO
+
+        csv_data = StringIO()
+        np.savetxt(csv_data, full_df, delimiter='|', fmt='%s')  # Change delimiter to pipe
+        csv_data.seek(0)
+
+        cur.copy_from(
+            csv_data,
+            'main_tb',
+            sep='|',  # Match the delimiter you used above
+            columns=('crypto_id', 'interval_id', 'currency_name', 'open_time',
+                    'open_price', 'close_price', 'high_price', 'low_price',
+                    'volume', 'close_time',  'quote_asset_volume', 'nr_trades',
+                    'tb_based_asset_volume', 'tb_quote_asset_volume'))
+        # Commit the transaction
+        conn.commit()
+
+        # Close the connection
+        cur.close()
+        conn.close()
+
+
