@@ -23,16 +23,6 @@ sleep 10  # Simple approach
 
 echo "TimescaleDB is ready!"
 
-echo "Install python packages"
-
-# install necessary python packages using pip
-pip install -r requirements.txt
-
-echo "Packages are installed"
-
-echo "Set-up timescale DB databse schema"
-python3 db_setup.py
-
 echo "Retrieve historical data to be loaded into DB"
 python3 hist_ret.py
 
