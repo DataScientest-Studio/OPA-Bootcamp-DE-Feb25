@@ -30,9 +30,12 @@ data = [[float(item) for item in sublist] for sublist in data]
 data = np.array(data, dtype=object)
 
 # transform open and close time to standard datetime format
-dat[0] = ret.unix_to_datetime(dat[0])
-dat[6] = ret.unix_to_datetime(dat[6])
-# transform
+data[:,0] = ret.unix_to_datetime(data[:,0])
+data[:,6] = ret.unix_to_datetime(data[:,6])
+
+# drop the last column, does not contain important info
+data = np.delete(data, -1, 1)
+print(data[0,])
 
 """ write data into tables"""
 
@@ -49,7 +52,7 @@ cur = conn.cursor()
 # record retrieval date
 cur.execute("""
 INSERT INTO Update_Record (Update_date)
-VALUES (%s);""", (datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+VALUES (%s);""", (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),))
 
 # insert the primary keys coin
 cur.execute("""
@@ -103,19 +106,17 @@ full_df = np.concatenate((np_cur, data), axis = 1)
 from io import StringIO
 
 csv_data = StringIO()
-np.savetxt(csv_data, full_df, delimiter=',', fmt='%s')
+np.savetxt(csv_data, full_df, delimiter='|', fmt='%s')  # Change delimiter to pipe
 csv_data.seek(0)
 
-# Use COPY to insert data directly
 cur.copy_from(
     csv_data,
-    'Main_tb',  # Target table
-    sep=',',       # Delimiter in your CSV data
-    columns=( 'Crypto_ID', 'Interval_ID', 'Currency_name' , 'Open_time',
-             'Open_price', 'Close_price', 'High_price', 'Low_price',
-             'Volume', 'Close_time', 'Nr_trades', 'Quote_asset_volume', 
-             'TB_based_asset_volume', 'TB_quote_asset_volume'))
-
+    'main_tb',
+    sep='|',  # Match the delimiter you used above
+    columns=('crypto_id', 'interval_id', 'currency_name', 'open_time',
+             'open_price', 'close_price', 'high_price', 'low_price',
+             'volume', 'close_time',  'quote_asset_volume', 'nr_trades',
+             'tb_based_asset_volume', 'tb_quote_asset_volume'))
 # Commit the transaction
 conn.commit()
 
