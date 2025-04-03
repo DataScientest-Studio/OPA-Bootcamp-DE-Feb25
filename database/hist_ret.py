@@ -18,7 +18,7 @@ sys.path.append(path + "/retrieval")
 from crypto_retrieval import retrieval
 
 # initialize class
-ret = retrieval(coin_list = ["XRP", "DOGE", "ETH"], interval_list = [ "1h", "1d"])
+ret = retrieval(coin_list = ["XRP", "DOGE", "ETH"], interval_list = ["1m","1h", "1d"])
 
 # save time at which we retriev data
 update_stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
