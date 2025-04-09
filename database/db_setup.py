@@ -15,7 +15,7 @@ conn = psycopg2.connect(database="crypto_db",
 cur = conn.cursor()
 
 print("---------------------------------")
-print("-- Delete any previously existing table witht the same name")
+print("-- Delete any previously existing table with the same name")
 print("---------------------------------")
 cur.execute("""DROP TABLE IF EXISTS Crypto_ID, Interval_ID, Main_Tb, Update_Record;""")
 conn.commit()
