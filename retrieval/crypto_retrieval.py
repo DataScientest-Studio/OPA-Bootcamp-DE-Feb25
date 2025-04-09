@@ -317,6 +317,18 @@ class retrieval():
             pass
 
     def db_update(self, coin, period_start, interval_id, host_info):
+        """
+        Retrieves new data and if not empty updates SQL data base
+        
+        Parameters:
+        coin (str): string indicating they currency name
+        period_start(str): Start datetime string e.g. "2019-03-12 12:30:45"
+        interval_id(str): Interval resolution in minutes hours or days, permitted strings are '1d', '4h', '1h', '15m'
+        host_info(str): VM address
+        
+        Returns:
+        
+        """
      
         data = self.retrieve_hist(coin = coin, period_start=period_start, interval_id=interval_id)
 
@@ -418,6 +430,17 @@ class retrieval():
             conn.close()
 
     def hist_update(self, time_stamp, host_info, period_start):
+        """
+        Initializes functions to retrieve and update database
+        
+        Parameters:
+        time_stamp (str): datetime string of current retrieval e.g. "2019-03-12 12:30:45"
+        period_start(str): Start datetime string e.g. "2019-03-12 12:30:45"
+        host_info(str): VM address
+        
+        Returns:
+        
+        """
 
         # record the retrieval update time and if necessary update the start date
         period_start = self.record_retrieval_db_update(time_stamp, period_start, host_info)
@@ -436,6 +459,20 @@ class retrieval():
                 
 
     def record_retrieval_db_update(self, timestamp, period_start, host_info):
+        """
+        Updates the Update_Record DB once. Also checks if DB is empty and if not 
+        returns the last entry as the new period_start date
+        
+        
+        Parameters:
+        time_stamp (str): datetime string of current retrieval e.g. "2019-03-12 12:30:45"
+        period_start(str): Start datetime string e.g. "2019-03-12 12:30:45"
+        host_info(str): VM address
+        
+        Returns:
+        period_start(str): Start datetime string if DB empty returns input, else last DB entry
+        
+        """
         conn = psycopg2.connect(database="crypto_db",
                                 host=host_info,
                                 user="daniel",
