@@ -75,6 +75,7 @@ class retrieval():
 
                 # Call the original function with modified arguments
                 batch_result = func(*bound_args.args, **bound_args.kwargs)
+                print(batch_result)
         
                 if batch_result:  # Only append if there are results
                     results.append(batch_result)
@@ -315,26 +316,126 @@ class retrieval():
         else:
             pass
 
-    def db_update(self, coin, period_start, interval_id,  time_stamp, host_info):
+    def db_update(self, coin, period_start, interval_id, host_info):
      
         data = self.retrieve_hist(coin = coin, period_start=period_start, interval_id=interval_id)
 
-        # make elements numeric
-        data = [[float(item) for item in sublist] for sublist in data]
+        # if we do not have any data to update we exit
+        if len(data) == 0:
+            pass
+        else:
 
-        # transfrom data into numpy array so that it is more workable - use object array for mixed data
-        data = np.array(data, dtype=object)
+            # make elements numeric
+            data = [[float(item) for item in sublist] for sublist in data]
 
-        # transform open and close time to standard datetime format
-        data[:,0] = self.unix_to_datetime(data[:,0])
-        data[:,6] = self.unix_to_datetime(data[:,6])
+            # transfrom data into numpy array so that it is more workable - use object array for mixed data
+            data = np.array(data, dtype=object)
 
-        # drop the last column, does not contain important info
-        data = np.delete(data, -1, 1)
+            # transform open and close time to standard datetime format
+            data[:,0] = self.unix_to_datetime(data[:,0])
+            data[:,6] = self.unix_to_datetime(data[:,6])
 
-        """ write data into tables"""
+            # drop the last column, does not contain important info
+            data = np.delete(data, -1, 1)
 
-        #connect database
+            """ write data into tables"""
+
+            #connect database
+            conn = psycopg2.connect(database="crypto_db",
+                                    host=host_info,
+                                    user="daniel",
+                                    password="datascientest",
+                                    port=5432)
+            
+            # next create a cursor
+            cur = conn.cursor()
+
+            # insert the primary keys coin
+            cur.execute("""
+            INSERT INTO Crypto_ID (Crypto_name)
+            SELECT %s
+            WHERE NOT EXISTS (
+                SELECT 1 FROM Crypto_ID 
+                WHERE Crypto_name = %s
+            );""", (self.coin, self.coin))
+
+            # insert the primary keys interval
+            cur.execute("""INSERT INTO Interval_ID (Interval_name)
+            SELECT %s
+            WHERE NOT EXISTS (
+                SELECT 1 FROM Interval_ID 
+                WHERE Interval_name = %s
+            );""", (self.interval, self.interval))
+
+            #commit changes
+            conn.commit()
+
+            # same for interval
+            cur.execute("""SELECT Interval_ID
+                            FROM Interval_ID
+                            WHERE Interval_name = %s""", [self.interval])
+                    
+            # get id
+            interval_id = cur.fetchone()
+
+            # same for crypto
+            cur.execute("""SELECT Crypto_ID
+                            FROM Crypto_ID
+                            WHERE Crypto_name = %s""", [self.coin])
+
+            # get id
+            Coin_id = cur.fetchone()
+
+
+
+            # create array with currency name
+            np_cur = np.concatenate((
+                np.tile(Coin_id, (data.shape[0], 1)),  
+                np.tile(interval_id, (data.shape[0], 1)),  
+                np.tile(self.currency, (data.shape[0], 1))   
+            ), axis=1)  # Concatenate along columns
+
+            # concatenate with the data array
+            full_df = np.concatenate((np_cur, data), axis = 1)
+
+            csv_data = StringIO()
+            np.savetxt(csv_data, full_df, delimiter='|', fmt='%s')  # Change delimiter to pipe
+            csv_data.seek(0)
+
+            cur.copy_from(
+                csv_data,
+                'main_tb',
+                sep='|',  # Match the delimiter you used above
+                columns=('crypto_id', 'interval_id', 'currency_name', 'open_time',
+                        'open_price', 'close_price', 'high_price', 'low_price',
+                        'volume', 'close_time',  'quote_asset_volume', 'nr_trades',
+                        'tb_based_asset_volume', 'tb_quote_asset_volume'))
+            # Commit the transaction
+            conn.commit()
+
+            # Close the connection
+            cur.close()
+            conn.close()
+
+    def hist_update(self, time_stamp, host_info, period_start):
+
+        # record the retrieval update time and if necessary update the start date
+        period_start = self.record_retrieval_db_update(time_stamp, period_start, host_info)
+
+        # 
+
+        # loop through coins and intervals
+        for coin in self.coin_list:
+            print(coin)
+            for interval in self.interval_list:
+                self.db_update(coin = coin, 
+                               period_start = period_start, 
+                               interval_id = interval,  
+                               host_info = host_info)
+        
+                
+
+    def record_retrieval_db_update(self, timestamp, period_start, host_info):
         conn = psycopg2.connect(database="crypto_db",
                                 host=host_info,
                                 user="daniel",
@@ -344,71 +445,19 @@ class retrieval():
         # next create a cursor
         cur = conn.cursor()
 
+        # Check if DB is empty
+        cur.execute("""
+        SELECT * FROM Update_Record ;""") 
+        content = cur.fetchall()
+
+        if len(content) != 0:
+            period_start = content[-1][1].strftime("%Y-%m-%d %H:%M:%S")
+
         # record retrieval date
         cur.execute("""
         INSERT INTO Update_Record (Update_date)
-        VALUES (%s);""", (time_stamp,)) 
+        VALUES (%s);""", (timestamp,)) 
 
-        # insert the primary keys coin
-        cur.execute("""
-        INSERT INTO Crypto_ID (Crypto_name)
-        SELECT %s
-        WHERE NOT EXISTS (
-            SELECT 1 FROM Crypto_ID 
-            WHERE Crypto_name = %s
-        );""", (self.coin, self.coin))
-
-        # insert the primary keys interval
-        cur.execute("""INSERT INTO Interval_ID (Interval_name)
-        SELECT %s
-        WHERE NOT EXISTS (
-            SELECT 1 FROM Interval_ID 
-            WHERE Interval_name = %s
-        );""", (self.interval, self.interval))
-
-        #commit changes
-        conn.commit()
-
-        # same for interval
-        cur.execute("""SELECT Interval_ID
-                        FROM Interval_ID
-                        WHERE Interval_name = %s""", [self.interval])
-                
-        # get id
-        interval_id = cur.fetchone()
-
-        # same for crypto
-        cur.execute("""SELECT Crypto_ID
-                        FROM Crypto_ID
-                        WHERE Crypto_name = %s""", [self.coin])
-
-        # get id
-        Coin_id = cur.fetchone()
-
-
-
-        # create array with currency name
-        np_cur = np.concatenate((
-            np.tile(Coin_id, (data.shape[0], 1)),  
-            np.tile(interval_id, (data.shape[0], 1)),  
-            np.tile(self.currency, (data.shape[0], 1))   
-        ), axis=1)  # Concatenate along columns
-
-        # concatenate with the data array
-        full_df = np.concatenate((np_cur, data), axis = 1)
-
-        csv_data = StringIO()
-        np.savetxt(csv_data, full_df, delimiter='|', fmt='%s')  # Change delimiter to pipe
-        csv_data.seek(0)
-
-        cur.copy_from(
-            csv_data,
-            'main_tb',
-            sep='|',  # Match the delimiter you used above
-            columns=('crypto_id', 'interval_id', 'currency_name', 'open_time',
-                    'open_price', 'close_price', 'high_price', 'low_price',
-                    'volume', 'close_time',  'quote_asset_volume', 'nr_trades',
-                    'tb_based_asset_volume', 'tb_quote_asset_volume'))
         # Commit the transaction
         conn.commit()
 
@@ -416,17 +465,7 @@ class retrieval():
         cur.close()
         conn.close()
 
-    def hist_update(self, time_stamp, host_info, period_start):
-
-        # loop through coins and intervals
-        for coin in self.coin_list:
-            print(coin)
-            for interval in self.interval_list:
-                self.db_update(coin = coin, 
-                               period_start = period_start, 
-                               interval_id = interval,  
-                               time_stamp = time_stamp, 
-                               host_info = host_info)
+        return(period_start)
 
 
                 
