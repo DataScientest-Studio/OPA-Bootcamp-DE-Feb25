@@ -1,5 +1,4 @@
-retrieval/__pycache__
-*.tar
-host.txt
-
-
+# Ignore compiled Python files
+*.pyc
+__pycache__/
+opeenv/

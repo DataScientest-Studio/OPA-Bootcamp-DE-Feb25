@@ -5,7 +5,7 @@ from .definition import db
 from .definition import swagger
 from .routes import api_register_routes
 
-def create_app(config_class='config.Config'):
+def create_app(config_class='config.PostgresqlConfig'):
     app = Flask(__name__)
     app.app_context().push()
     app.config.from_object(config_class)
