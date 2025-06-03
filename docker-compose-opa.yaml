@@ -1,0 +1,90 @@
+version: '3.8'
+services:
+  opa_api:
+    build:
+      context: ./src/API
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - opa_db
+    ports:
+      - ${API_PORT}:${API_PORT}
+    container_name: opa_api
+    volumes:
+      - Models:/app/models
+    networks:
+      - opa_network
+  opa_db:
+    container_name: opa_pg
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+    networks:
+      - opa_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+      interval: 5s
+      retries: 5
+  pgadmin:
+    container_name: opa_pgadmin4
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    networks:
+      - opa_network
+  opa_streamlit:
+    build:
+      context: ./src/streamlit_app
+      dockerfile: Dockerfile.streamlit
+    depends_on:
+      - opa_api
+    ports:
+      - ${STREAMLIT_PORT}:${STREAMLIT_PORT}
+    container_name: opa_streamlit
+    environment:
+      - API_URL=http://opa_api:${API_PORT}
+    networks:
+      - opa_network
+  opa_data_loader:
+    build:
+      context: ./src/data_loader
+      dockerfile: Dockerfile.data_loader
+    depends_on:
+      opa_db:
+        condition: service_healthy
+    container_name: opa_data_loader
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_PORT: ${DB_PORT}
+      DB_HOST: opa_pg
+    networks:
+      - opa_network
+  opa_ml:
+    build:
+      context: ./src/ML
+      dockerfile: Dockerfile.ml
+    depends_on:
+      - opa_api
+    container_name: opa_ml
+    volumes:
+      - Models:/app/models
+    networks:
+      - opa_network
+networks:
+  opa_network:
+    driver: bridge
+volumes:
+  pgdata:
+  Models:
