@@ -2,15 +2,15 @@
 Project were we stream crypto data and try to predict prices
 
 API:
-1. Build a tunel from local PC
+1. Build and start all Docker containers (docker-compose-opa.yaml)
+
+2. Build a tunel from local PC
 
 For FlaskAPI:
 ssh -i "your.pem" -L 8088:localhost:8088 ubuntu@[current-ip]
 
 For Streamlit dashboard:
 ssh -i "your.pem" -L 8090:localhost:8090 ubuntu@[current-ip]
-
-2. Start all Docker containers
 
 3. API docs:
 http://localhost:8088/apidocs/
