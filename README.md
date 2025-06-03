@@ -20,7 +20,7 @@ http://localhost:8090
 
 Docs:
 
-    Defenmce presentation: DataScientest-Project-OPA.pptx
+    Defence presentation: DataScientest-Project-OPA.pptx
     UML drawings: OPA-UML.drawio (open on draw.io)
 
 Source code :
